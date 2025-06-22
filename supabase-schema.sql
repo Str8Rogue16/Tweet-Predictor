@@ -25,7 +25,7 @@ CREATE TABLE public.tweet_analyses (
     engagement_level TEXT CHECK (engagement_level IN ('Low', 'Medium', 'High', 'Very High')),
     reach_level TEXT CHECK (reach_level IN ('Limited', 'Moderate', 'Good', 'Excellent')),
     detailed_analysis TEXT,
-    suggestions TEXT[],
+    suggestions JSONB,
     optimal_posting_time TEXT,
     analysis_metadata JSONB, -- Store additional analysis data
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -58,94 +58,22 @@ CREATE INDEX idx_tweet_analyses_created_at ON public.tweet_analyses(created_at D
 CREATE INDEX idx_usage_logs_user_id ON public.usage_logs(user_id);
 CREATE INDEX idx_usage_logs_created_at ON public.usage_logs(created_at DESC);
 
--- Row Level Security Policies
-ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.tweet_analyses ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.usage_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.subscription_events ENABLE ROW LEVEL SECURITY;
+-- Note: Row Level Security policies removed for compatibility
+-- If using Supabase/PostgreSQL, you can add RLS policies through the dashboard
 
--- User profiles policies
-CREATE POLICY "Users can view own profile" ON public.user_profiles
-    FOR SELECT USING (auth.uid() = user_id);
+-- Note: PostgreSQL-specific functions and triggers removed for compatibility
+-- If using Supabase/PostgreSQL, you can add these through the SQL editor:
 
-CREATE POLICY "Users can update own profile" ON public.user_profiles
-    FOR UPDATE USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert own profile" ON public.user_profiles
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
-
--- Tweet analyses policies
-CREATE POLICY "Users can view own analyses" ON public.tweet_analyses
-    FOR SELECT USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert own analyses" ON public.tweet_analyses
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update own analyses" ON public.tweet_analyses
-    FOR UPDATE USING (auth.uid() = user_id);
-
--- Usage logs policies
-CREATE POLICY "Users can view own usage logs" ON public.usage_logs
-    FOR SELECT USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert own usage logs" ON public.usage_logs
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
-
--- Subscription events policies
-CREATE POLICY "Users can view own subscription events" ON public.subscription_events
-    FOR SELECT USING (auth.uid() = user_id);
-
--- Functions for daily usage reset
-CREATE OR REPLACE FUNCTION reset_daily_analyses()
-RETURNS void AS $$
-BEGIN
-    UPDATE public.user_profiles 
-    SET 
-        analyses_remaining = CASE 
-            WHEN plan_type = 'free' THEN 3
-            WHEN plan_type = 'pro' THEN 999999
-            ELSE analyses_remaining
-        END,
-        daily_reset_date = CURRENT_DATE
-    WHERE daily_reset_date < CURRENT_DATE
-    AND plan_type IN ('free', 'pro');
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Function to create user profile on signup
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS trigger AS $$
-BEGIN
-    INSERT INTO public.user_profiles (user_id, email, full_name)
-    VALUES (
-        NEW.id,
-        NEW.email,
-        COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email)
-    );
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Trigger to create profile on user signup
-CREATE TRIGGER on_auth_user_created
-    AFTER INSERT ON auth.users
-    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-
--- Function to update updated_at timestamp
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- Trigger to update updated_at on user_profiles
-CREATE TRIGGER update_user_profiles_updated_at
-    BEFORE UPDATE ON public.user_profiles
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
--- Create a scheduled job to reset daily analyses (requires pg_cron extension)
--- Run this separately if you have pg_cron enabled:
--- SELECT cron.schedule('reset-daily-analyses', '0 0 * * *', 'SELECT reset_daily_analyses();');
+-- Example function for daily reset (PostgreSQL only):
+-- CREATE OR REPLACE FUNCTION reset_daily_analyses() RETURNS void AS $
+-- BEGIN
+--     UPDATE public.user_profiles 
+--     SET analyses_remaining = CASE 
+--         WHEN plan_type = 'free' THEN 3
+--         WHEN plan_type = 'pro' THEN 999999
+--         ELSE analyses_remaining
+--     END,
+--     daily_reset_date = CURRENT_DATE
+--     WHERE daily_reset_date < CURRENT_DATE;
+-- END;
+-- $ LANGUAGE plpgsql;

@@ -1,7 +1,7 @@
 // supabase-config.js
 import { createClient } from '@supabase/supabase-js'
 
-// Supabase configuration
+// Supabase configuration - Replace with your actual values
 const supabaseUrl = 'SUPABASE_URL'
 const supabaseAnonKey = 'SUPABASE_ANON_KEY'
 
@@ -13,47 +13,67 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 })
 
-// Auth helper functions
+// Authentication helper functions
 export const authHelpers = {
   // Sign up new user
   async signUp(email, password, fullName) {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName
+          }
         }
-      }
-    })
-    return { data, error }
+      })
+      return { data, error }
+    } catch (err) {
+      return { data: null, error: err }
+    }
   },
 
   // Sign in user
   async signIn(email, password) {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    })
-    return { data, error }
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
+      return { data, error }
+    } catch (err) {
+      return { data: null, error: err }
+    }
   },
 
   // Sign out user
   async signOut() {
-    const { error } = await supabase.auth.signOut()
-    return { error }
+    try {
+      const { error } = await supabase.auth.signOut()
+      return { error }
+    } catch (err) {
+      return { error: err }
+    }
   },
 
   // Get current user
   async getCurrentUser() {
-    const { data: { user }, error } = await supabase.auth.getUser()
-    return { user, error }
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser()
+      return { user, error }
+    } catch (err) {
+      return { user: null, error: err }
+    }
   },
 
   // Get user session
   async getSession() {
-    const { data: { session }, error } = await supabase.auth.getSession()
-    return { session, error }
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession()
+      return { session, error }
+    } catch (err) {
+      return { session: null, error: err }
+    }
   }
 }
 
@@ -61,152 +81,205 @@ export const authHelpers = {
 export const dbHelpers = {
   // Get user profile
   async getUserProfile(userId) {
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
-    return { data, error }
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('user_id', userId) // Using consistent field name
+        .single()
+      return { data, error }
+    } catch (err) {
+      return { data: null, error: err }
+    }
   },
 
   // Update user profile
   async updateUserProfile(userId, updates) {
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .update(updates)
-      .eq('id', userId)
-      .select()
-      .single()
-    return { data, error }
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .update(updates)
+        .eq('user_id', userId)
+        .select()
+        .single()
+      return { data, error }
+    } catch (err) {
+      return { data: null, error: err }
+    }
   },
 
   // Check if user can perform analysis
   async canPerformAnalysis(userId) {
-    const { data: profile, error } = await this.getUserProfile(userId)
-    if (error) return { canAnalyze: false, error }
+    try {
+      const { data: profile, error } = await this.getUserProfile(userId)
+      if (error) return { canAnalyze: false, error }
 
-    // Reset daily count if needed
-    const today = new Date().toISOString().split('T')[0]
-    if (profile.daily_reset_date !== today) {
-      await this.resetDailyAnalyses(userId)
-      // Refetch profile after reset
-      const { data: updatedProfile } = await this.getUserProfile(userId)
-      profile = updatedProfile
+      const now = new Date()
+      const today = now.toISOString().split('T')[0]
+
+      // Check based on plan type
+      if (profile.plan_type === 'free') {
+        // Free users: 3 analyses per day
+        const { data: todayAnalyses, error: countError } = await supabase
+          .from('tweet_analyses')
+          .select('id')
+          .eq('user_id', userId)
+          .gte('created_at', today + 'T00:00:00')
+          .lt('created_at', today + 'T23:59:59')
+
+        if (countError) return { canAnalyze: false, error: countError }
+        
+        const remainingAnalyses = 3 - (todayAnalyses?.length || 0)
+        return {
+          canAnalyze: remainingAnalyses > 0,
+          remainingAnalyses,
+          planType: 'free'
+        }
+      } else if (profile.plan_type === 'pack') {
+        // Pack users: limited analyses
+        const remaining = profile.pack_analyses_remaining || 0
+        return {
+          canAnalyze: remaining > 0,
+          remainingAnalyses: remaining,
+          packAnalyses: remaining,
+          planType: 'pack'
+        }
+      } else if (profile.plan_type === 'pro') {
+        // Pro users: unlimited
+        return {
+          canAnalyze: true,
+          remainingAnalyses: -1, // -1 indicates unlimited
+          planType: 'pro'
+        }
+      }
+
+      return { canAnalyze: false, error: 'Invalid plan type' }
+    } catch (err) {
+      return { canAnalyze: false, error: err }
     }
-
-    let canAnalyze = false
-    if (profile.plan_type === 'free') {
-      canAnalyze = profile.analyses_remaining > 0
-    } else if (profile.plan_type === 'pack') {
-      canAnalyze = profile.pack_analyses_remaining > 0
-    } else if (profile.plan_type === 'pro') {
-      canAnalyze = true // Unlimited
-    }
-
-    return { 
-      canAnalyze, 
-      remainingAnalyses: profile.analyses_remaining,
-      packAnalyses: profile.pack_analyses_remaining,
-      planType: profile.plan_type 
-    }
-  },
-
-  // Reset daily analyses
-  async resetDailyAnalyses(userId) {
-    const today = new Date().toISOString().split('T')[0]
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .update({
-        analyses_remaining: 3, // Reset to 3 for free users
-        daily_reset_date: today
-      })
-      .eq('id', userId)
-      .eq('plan_type', 'free')
-    return { data, error }
   },
 
   // Consume analysis credit
   async consumeAnalysisCredit(userId) {
-    const { data: profile, error: profileError } = await this.getUserProfile(userId)
-    if (profileError) return { success: false, error: profileError }
+    try {
+      const { data: profile, error } = await this.getUserProfile(userId)
+      if (error) return { success: false, error }
 
-    let updateData = {
-      total_analyses_used: profile.total_analyses_used + 1
+      if (profile.plan_type === 'pack') {
+        // Decrement pack analyses
+        const { error: updateError } = await supabase
+          .from('user_profiles')
+          .update({ 
+            pack_analyses_remaining: Math.max(0, (profile.pack_analyses_remaining || 0) - 1),
+            total_analyses_used: (profile.total_analyses_used || 0) + 1
+          })
+          .eq('user_id', userId)
+        
+        return { success: !updateError, error: updateError }
+      }
+
+      // For free users, just increment total count
+      if (profile.plan_type === 'free') {
+        const { error: updateError } = await supabase
+          .from('user_profiles')
+          .update({ 
+            total_analyses_used: (profile.total_analyses_used || 0) + 1
+          })
+          .eq('user_id', userId)
+        
+        return { success: !updateError, error: updateError }
+      }
+
+      // Pro users - just increment total count
+      const { error: updateError } = await supabase
+        .from('user_profiles')
+        .update({ 
+          total_analyses_used: (profile.total_analyses_used || 0) + 1
+        })
+        .eq('user_id', userId)
+
+      return { success: !updateError, error: updateError }
+    } catch (err) {
+      return { success: false, error: err }
     }
-
-    if (profile.plan_type === 'free') {
-      updateData.analyses_remaining = Math.max(0, profile.analyses_remaining - 1)
-    } else if (profile.plan_type === 'pack') {
-      updateData.pack_analyses_remaining = Math.max(0, profile.pack_analyses_remaining - 1)
-    }
-
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .update(updateData)
-      .eq('id', userId)
-
-    return { success: !error, error }
   },
 
   // Save tweet analysis
   async saveTweetAnalysis(userId, analysisData) {
-    const { data, error } = await supabase
-      .from('tweet_analyses')
-      .insert({
-        user_id: userId,
-        tweet_content: analysisData.tweetContent,
-        overall_score: analysisData.overallScore,
-        engagement_level: analysisData.engagementLevel,
-        reach_level: analysisData.reachLevel,
-        detailed_analysis: analysisData.detailedAnalysis,
-        suggestions: analysisData.suggestions,
-        optimal_posting_time: analysisData.optimalPostingTime,
-        analysis_metadata: analysisData.metadata || {}
-      })
-      .select()
-      .single()
+    try {
+      const { data, error } = await supabase
+        .from('tweet_analyses')
+        .insert({
+          user_id: userId,
+          tweet_content: analysisData.tweetContent,
+          overall_score: analysisData.overallScore,
+          engagement_level: analysisData.engagementLevel,
+          reach_level: analysisData.reachLevel,
+          detailed_analysis: analysisData.detailedAnalysis,
+          suggestions: analysisData.suggestions,
+          optimal_posting_time: analysisData.optimalPostingTime,
+          metadata: analysisData.metadata || {}
+        })
+        .select()
+        .single()
 
-    return { data, error }
+      return { data, error }
+    } catch (err) {
+      return { data: null, error: err }
+    }
   },
 
   // Get user's analysis history
   async getAnalysisHistory(userId, limit = 10, offset = 0) {
-    const { data, error } = await supabase
-      .from('tweet_analyses')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1)
+    try {
+      const { data, error } = await supabase
+        .from('tweet_analyses')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1)
 
-    return { data, error }
+      return { data, error }
+    } catch (err) {
+      return { data: null, error: err }
+    }
   },
 
   // Log user action
   async logUserAction(userId, actionType, metadata = {}) {
-    const { data, error } = await supabase
-      .from('usage_logs')
-      .insert({
-        user_id: userId,
-        action_type: actionType,
-        metadata
-      })
+    try {
+      const { data, error } = await supabase
+        .from('usage_logs')
+        .insert({
+          user_id: userId,
+          action_type: actionType,
+          metadata,
+          created_at: new Date().toISOString()
+        })
 
-    return { data, error }
+      return { data, error }
+    } catch (err) {
+      return { data: null, error: err }
+    }
   },
 
   // Get usage statistics
   async getUsageStats(userId, days = 30) {
-    const startDate = new Date()
-    startDate.setDate(startDate.getDate() - days)
+    try {
+      const startDate = new Date()
+      startDate.setDate(startDate.getDate() - days)
 
-    const { data, error } = await supabase
-      .from('usage_logs')
-      .select('action_type, created_at')
-      .eq('user_id', userId)
-      .gte('created_at', startDate.toISOString())
-      .order('created_at', { ascending: false })
+      const { data, error } = await supabase
+        .from('usage_logs')
+        .select('action_type, created_at')
+        .eq('user_id', userId)
+        .gte('created_at', startDate.toISOString())
+        .order('created_at', { ascending: false })
 
-    return { data, error }
+      return { data, error }
+    } catch (err) {
+      return { data: null, error: err }
+    }
   }
 }
 
@@ -220,7 +293,7 @@ export const realtimeHelpers = {
         event: '*',
         schema: 'public',
         table: 'user_profiles',
-        filter: `id=eq.${userId}`
+        filter: `user_id=eq.${userId}`
       }, callback)
       .subscribe()
   },
@@ -239,6 +312,128 @@ export const realtimeHelpers = {
   }
 }
 
+// UI Helper Functions for Auth State Management
+export const uiHelpers = {
+  // Handle successful sign in
+  handleSignIn(user) {
+    // Show authenticated UI elements
+    const userInfo = document.getElementById('userInfo')
+    const signInHeader = document.getElementById('signInHeader')
+    const accessOverlay = document.getElementById('accessOverlay')
+    const userDisplay = document.getElementById('userDisplay')
+    
+    if (userInfo) userInfo.classList.remove('hidden')
+    if (signInHeader) signInHeader.classList.add('hidden')
+    if (accessOverlay) accessOverlay.style.display = 'none'
+    if (userDisplay) userDisplay.textContent = user.email
+    
+    // Load user data
+    this.loadUserProfile(user.id)
+  },
+
+  // Handle sign out
+  handleSignOut() {
+    // Show unauthenticated UI elements
+    const userInfo = document.getElementById('userInfo')
+    const signInHeader = document.getElementById('signInHeader')
+    const accessOverlay = document.getElementById('accessOverlay')
+    
+    if (userInfo) userInfo.classList.add('hidden')
+    if (signInHeader) signInHeader.classList.remove('hidden')
+    if (accessOverlay) accessOverlay.style.display = 'flex'
+    
+    // Clear user data
+    this.clearUserData()
+  },
+
+  // Load user profile and update UI
+  async loadUserProfile(userId) {
+    const { data: profile, error } = await dbHelpers.getUserProfile(userId)
+    if (error) {
+      console.error('Error loading profile:', error)
+      return
+    }
+    
+    // Update usage count display
+    this.updateUsageDisplay(profile)
+    
+    // Load analysis history
+    this.loadAnalysisHistory(userId)
+  },
+
+  // Update usage display in UI
+  updateUsageDisplay(profile) {
+    const usageElement = document.getElementById('usageCount')
+    if (!usageElement) return
+    
+    let usageText = ''
+    
+    if (profile.plan_type === 'free') {
+      // Calculate remaining analyses for today
+      const today = new Date().toISOString().split('T')[0]
+      // You might want to fetch actual count here for accuracy
+      usageText = 'Free plan - 3 analyses per day'
+    } else if (profile.plan_type === 'pack') {
+      usageText = `${profile.pack_analyses_remaining || 0} analyses remaining in pack`
+    } else if (profile.plan_type === 'pro') {
+      usageText = 'Unlimited analyses'
+    }
+    
+    usageElement.textContent = usageText
+  },
+
+  // Load and display analysis history
+  async loadAnalysisHistory(userId) {
+    const { data: analyses, error } = await dbHelpers.getAnalysisHistory(userId)
+    if (error) {
+      console.error('Error loading history:', error)
+      return
+    }
+    
+    this.displayAnalysisHistory(analyses)
+  },
+
+  // Display analysis history in UI
+  displayAnalysisHistory(analyses) {
+    const historyList = document.getElementById('historyList')
+    const historySection = document.getElementById('historySection')
+    
+    if (!historyList || !historySection) return
+    
+    if (analyses && analyses.length > 0) {
+      historySection.classList.remove('hidden')
+      historyList.innerHTML = analyses.map(analysis => `
+        <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
+          <div class="flex justify-between items-start mb-2">
+            <div class="font-medium text-slate-800 truncate mr-4">
+              "${analysis.tweet_content.substring(0, 60)}${analysis.tweet_content.length > 60 ? '...' : ''}"
+            </div>
+            <div class="text-sm text-slate-500 whitespace-nowrap">
+              ${new Date(analysis.created_at).toLocaleDateString()}
+            </div>
+          </div>
+          <div class="flex items-center space-x-4 text-sm">
+            <span class="text-blue-600 font-semibold">Score: ${analysis.overall_score}</span>
+            <span class="text-slate-600">Engagement: ${analysis.engagement_level}</span>
+            <span class="text-slate-600">Reach: ${analysis.reach_level}</span>
+          </div>
+        </div>
+      `).join('')
+    } else {
+      historySection.classList.add('hidden')
+    }
+  },
+
+  // Clear user data from UI
+  clearUserData() {
+    const usageCount = document.getElementById('usageCount')
+    const historySection = document.getElementById('historySection')
+    
+    if (usageCount) usageCount.textContent = 'Sign in to track usage'
+    if (historySection) historySection.classList.add('hidden')
+  }
+}
+
 // Initialize auth state listener
 export function initAuthListener() {
   supabase.auth.onAuthStateChange((event, session) => {
@@ -248,13 +443,11 @@ export function initAuthListener() {
     switch (event) {
       case 'SIGNED_IN':
         console.log('User signed in:', session.user)
-        // Update UI to show authenticated state
-        handleSignIn(session.user)
+        uiHelpers.handleSignIn(session.user)
         break
       case 'SIGNED_OUT':
         console.log('User signed out')
-        // Update UI to show unauthenticated state
-        handleSignOut()
+        uiHelpers.handleSignOut()
         break
       case 'TOKEN_REFRESHED':
         console.log('Token refreshed')
@@ -263,95 +456,12 @@ export function initAuthListener() {
   })
 }
 
-// UI update functions (to be implemented in your main.js)
-function handleSignIn(user) {
-  // Show authenticated UI elements
-  document.getElementById('userInfo').classList.remove('hidden')
-  document.getElementById('signInHeader').classList.add('hidden')
-  document.getElementById('accessOverlay').style.display = 'none'
-  document.getElementById('userDisplay').textContent = user.email
-  
-  // Load user data
-  loadUserProfile(user.id)
-}
-
-function handleSignOut() {
-  // Show unauthenticated UI elements
-  document.getElementById('userInfo').classList.add('hidden')
-  document.getElementById('signInHeader').classList.remove('hidden')
-  document.getElementById('accessOverlay').style.display = 'flex'
-  
-  // Clear user data
-  clearUserData()
-}
-
-async function loadUserProfile(userId) {
-  const { data: profile, error } = await dbHelpers.getUserProfile(userId)
-  if (error) {
-    console.error('Error loading profile:', error)
-    return
-  }
-  
-  // Update usage count display
-  updateUsageDisplay(profile)
-  
-  // Load analysis history
-  loadAnalysisHistory(userId)
-}
-
-function updateUsageDisplay(profile) {
-  const usageElement = document.getElementById('usageCount')
-  let usageText = ''
-  
-  if (profile.plan_type === 'free') {
-    usageText = `${profile.analyses_remaining}/3 analyses remaining today`
-  } else if (profile.plan_type === 'pack') {
-    usageText = `${profile.pack_analyses_remaining} analyses remaining in pack`
-  } else if (profile.plan_type === 'pro') {
-    usageText = 'Unlimited analyses'
-  }
-  
-  usageElement.textContent = usageText
-}
-
-async function loadAnalysisHistory(userId) {
-  const { data: analyses, error } = await dbHelpers.getAnalysisHistory(userId)
-  if (error) {
-    console.error('Error loading history:', error)
-    return
-  }
-  
-  // Display history in UI
-  displayAnalysisHistory(analyses)
-}
-
-function displayAnalysisHistory(analyses) {
-  const historyList = document.getElementById('historyList')
-  const historySection = document.getElementById('historySection')
-  
-  if (analyses && analyses.length > 0) {
-    historySection.classList.remove('hidden')
-    historyList.innerHTML = analyses.map(analysis => `
-      <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
-        <div class="flex justify-between items-start mb-2">
-          <div class="font-medium text-slate-800 truncate mr-4">
-            "${analysis.tweet_content.substring(0, 60)}${analysis.tweet_content.length > 60 ? '...' : ''}"
-          </div>
-          <div class="text-sm text-slate-500 whitespace-nowrap">
-            ${new Date(analysis.created_at).toLocaleDateString()}
-          </div>
-        </div>
-        <div class="flex items-center space-x-4 text-sm">
-          <span class="text-blue-600 font-semibold">Score: ${analysis.overall_score}</span>
-          <span class="text-slate-600">Engagement: ${analysis.engagement_level}</span>
-          <span class="text-slate-600">Reach: ${analysis.reach_level}</span>
-        </div>
-      </div>
-    `).join('')
-  }
-}
-
-function clearUserData() {
-  document.getElementById('usageCount').textContent = 'Sign in to track usage'
-  document.getElementById('historySection').classList.add('hidden')
+// For browser environments, make available globally
+if (typeof window !== 'undefined') {
+  window.supabase = supabase
+  window.authHelpers = authHelpers
+  window.dbHelpers = dbHelpers
+  window.realtimeHelpers = realtimeHelpers
+  window.uiHelpers = uiHelpers
+  window.initAuthListener = initAuthListener
 }

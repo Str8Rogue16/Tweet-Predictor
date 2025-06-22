@@ -5,7 +5,7 @@ ALTER DATABASE postgres SET "app.jwt_secret" TO 'SUPABASE_JWT_SECRET';
 
 -- Users table (extends Supabase auth.users)
 CREATE TABLE public.user_profiles (
-    id UUID REFERENCES auth.users(id) PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) PRIMARY KEY,
     full_name TEXT,
     email TEXT UNIQUE NOT NULL,
     plan_type TEXT DEFAULT 'free' CHECK (plan_type IN ('free', 'pack', 'pro')),
@@ -22,7 +22,7 @@ CREATE TABLE public.user_profiles (
 -- Tweet analyses table
 CREATE TABLE public.tweet_analyses (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES public.user_profiles(user_id) ON DELETE CASCADE,
     tweet_content TEXT NOT NULL,
     overall_score INTEGER CHECK (overall_score >= 0 AND overall_score <= 100),
     engagement_level TEXT CHECK (engagement_level IN ('Low', 'Medium', 'High', 'Very High')),
@@ -37,7 +37,7 @@ CREATE TABLE public.tweet_analyses (
 -- Usage tracking table for analytics
 CREATE TABLE public.usage_logs (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES public.user_profiles(user_id) ON DELETE CASCADE,
     action_type TEXT NOT NULL CHECK (action_type IN ('analysis', 'login', 'signup')),
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -46,7 +46,7 @@ CREATE TABLE public.usage_logs (
 -- Subscription events table
 CREATE TABLE public.subscription_events (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES public.user_profiles(user_id) ON DELETE CASCADE,
     event_type TEXT NOT NULL CHECK (event_type IN ('created', 'updated', 'cancelled', 'payment_succeeded', 'payment_failed')),
     stripe_event_id TEXT UNIQUE,
     event_data JSONB,
@@ -55,6 +55,7 @@ CREATE TABLE public.subscription_events (
 
 -- Create indexes for better performance
 CREATE INDEX idx_user_profiles_email ON public.user_profiles(email);
+CREATE INDEX idx_user_profiles_user_id ON public.user_profiles(user_id);
 CREATE INDEX idx_tweet_analyses_user_id ON public.tweet_analyses(user_id);
 CREATE INDEX idx_tweet_analyses_created_at ON public.tweet_analyses(created_at DESC);
 CREATE INDEX idx_usage_logs_user_id ON public.usage_logs(user_id);
@@ -68,13 +69,13 @@ ALTER TABLE public.subscription_events ENABLE ROW LEVEL SECURITY;
 
 -- User profiles policies
 CREATE POLICY "Users can view own profile" ON public.user_profiles
-    FOR SELECT USING (auth.uid() = id);
+    FOR SELECT USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can update own profile" ON public.user_profiles
-    FOR UPDATE USING (auth.uid() = id);
+    FOR UPDATE USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can insert own profile" ON public.user_profiles
-    FOR INSERT WITH CHECK (auth.uid() = id);
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- Tweet analyses policies
 CREATE POLICY "Users can view own analyses" ON public.tweet_analyses
@@ -118,7 +119,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
-    INSERT INTO public.user_profiles (id, email, full_name)
+    INSERT INTO public.user_profiles (user_id, email, full_name)
     VALUES (
         NEW.id,
         NEW.email,
@@ -151,5 +152,3 @@ CREATE TRIGGER update_user_profiles_updated_at
 -- Create a scheduled job to reset daily analyses (requires pg_cron extension)
 -- Run this separately if you have pg_cron enabled:
 -- SELECT cron.schedule('reset-daily-analyses', '0 0 * * *', 'SELECT reset_daily_analyses();');
-
-

@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tweet Performance Predictor - AI-Powered Tweet Analysis</title>
+    <meta name="description" content="Predict your tweet's engagement before you hit publish. AI-powered tweet analysis with performance scoring, engagement prediction, and actionable improvement tips.">
+    <meta name="keywords" content="tweet analysis, twitter engagement, social media marketing, AI tweet predictor, tweet performance">  
+    <meta property="og:title" content="Tweet Performance Predictor">
+    <meta property="og:description" content="Predict tweet engagement using AI before you hit publish.">
+    <meta property="og:image:alt" content="https://yourdomain.com/og-image.jpg">
+    <meta property="og:url" content="https://tweetpredictor.io">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="theme-color" content="#0f172a"> <!-- Tailwind slate-900 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/compromise"></script>
+    <script src="main.js" defer></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel=stylesheet href="styles.css">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+</head>
+
+<noscript>
+  <div class="bg-red-100 text-red-700 p-4 text-center">
+    This app requires JavaScript to function. Please enable JavaScript in your browser settings.
+  </div>
+</noscript>
+
+<body class="min-h-screen" itemscope itemtype="https://schema.org/WebPage" lang="en">
+    <!-- Auth Modal -->
+    <div id="authModal" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
+        <h2 id="authModalTitle">Welcome to Tweet Predictor</h2>
+   
+            <!-- Auth Tabs -->
+            <div class="auth-tabs">
+                <div class="auth-tab active" data-tab="login">Login</div>
+                <div class="auth-tab" data-tab="register">Register</div>
+            </div>
+
+            <!-- Login Form -->
+            <div id="loginForm" class="auth-form">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Email</label>
+                    <input type="email" id="loginEmail" class="w-full input-field" placeholder="Enter your email">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Password</label>
+                    <input type="password" id="loginPassword" class="w-full input-field" placeholder="Enter your password">
+                </div>
+                <button id="loginBtn" class="w-full saas-button text-white py-3 rounded-lg font-semibold">
+                    <span id="loginBtnText">Sign In</span>
+                    <div id="loginSpinner" class="loading-spinner hidden inline-block ml-2"></div>
+                </button>
+                <div id="loginMessage"></div>
+            </div>
+
+            <!-- Register Form -->
+            <div id="registerForm" class="auth-form hidden">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Full Name</label>
+                    <input type="text" id="registerName" class="w-full input-field" placeholder="Enter your full name">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Email</label>
+                    <input type="email" id="registerEmail" class="w-full input-field" placeholder="Enter your email">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Password</label>
+                    <input type="password" id="registerPassword" class="w-full input-field" placeholder="Create a password (min 6 characters)">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Confirm Password</label>
+                    <input type="password" id="confirmPassword" class="w-full input-field" placeholder="Confirm your password">
+                </div>
+                <button id="registerBtn" class="w-full saas-button text-white py-3 rounded-lg font-semibold">
+                    <span id="registerBtnText">Create Account</span>
+                    <div id="registerSpinner" class="loading-spinner hidden inline-block ml-2"></div>
+                </button>
+                <p class="text-sm text-slate-600 mt-4 text-center">Start with 3 free analyses daily</p>
+                <div id="registerMessage"></div>
+            </div>
+
+            <button id="closeAuthModal" class="absolute top-4 right-4 text-slate-400 hover:text-blue-500">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="header-pattern text-white py-12 relative" itemscope itemtype="https://schema.org/WPHeader">
+        <div class="container mx-auto px-4 text-center relative z-10">
+            <h1 class="text-4xl font-bold mb-4 text-white" itemprop="headline">🚀 Tweet Performance Predictor</h1>
+            <p class="text-xl opacity-90" itemprop="description">Predict your tweet's engagement before you hit publish</p>
+            <div class="mt-6 flex justify-center space-x-6 text-sm opacity-80">
+                <span><i class="fas fa-chart-line mr-2 saas-text-secondary"></i>AI-Powered Analysis</span>
+                <span><i class="fas fa-zap mr-2 saas-text-secondary"></i>Instant Results</span>
+                <span><i class="fas fa-target mr-2 saas-text-secondary"></i>Actionable Tips</span>
+            </div>
+            <div class="mt-4">
+                <div id="userInfo" class="hidden">
+                    <span id="userDisplay" class="text-sm opacity-80"></span>
+                    <button id="signOutBtn" class="ml-4 text-sm underline opacity-80 hover:opacity-100 saas-text-secondary">Sign Out</button>
+                </div>
+                <button id="signInHeader" class="saas-button-secondary text-white px-6 py-2 rounded-lg font-semibold">Get Started</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-12 max-w-4xl" itemscope itemtype="https://schema.org/WebPageElement" itemprop="mainContentOfPage">
+        <!-- Protected Content Wrapper -->
+        <div id="protectedWrapper" class="relative">
+            <!-- Access Overlay (shown when not authenticated) -->
+            <div id="accessOverlay" class="access-overlay">
+                <i class="fas fa-lock text-4xl text-blue-500 mb-4"></i>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">Authentication Required</h3>
+                <p class="text-slate-600 mb-4">Please sign up or log in to access the Tweet Performance Predictor</p>
+                <button id="overlaySignUp" class="saas-button text-white px-6 py-3 rounded-lg font-semibold">
+                    Get Started Free
+                </button>
+            </div>
+
+            <!-- Tweet Input Section -->
+            <section class="saas-card rounded-xl p-8 mb-8" itemscope itemtype="https://schema.org/SoftwareApplication">
+                <h2 class="text-2xl font-bold mb-6 saas-text-primary" itemprop="name">Analyze Your Tweet</h2>
+                
+                <div class="grid md:grid-cols-2 gap-8">
+                    <!-- Input Side -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Enter your tweet:</label>
+                        <textarea 
+                            id="tweetInput" 
+                            placeholder="What's happening?" 
+                            class="w-full h-32 p-4 bg-slate-50 border border-slate-300 text-slate-900 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            maxlength="280"
+                            aria-label="Tweet content input"
+                        ></textarea>
+                        <div class="flex justify-between items-center mt-2">
+                            <div id="usageCount" class="text-sm text-slate-600">Sign in to track usage</div>
+                            <div class="flex flex-col items-end">
+                                <span id="charCount" class="text-sm text-slate-500">0/280</span>
+                                <button 
+                                    id="analyzeBtn" 
+                                    class="mt-2 saas-button text-white px-8 py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                                    aria-label="Analyze tweet performance"
+                                >
+                                    <span id="btnText">Analyze Tweet</span>
+                                    <div id="btnSpinner" class="loading-spinner hidden inline-block ml-2"></div>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Preview Side -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Preview:</label>
+                        <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                            <div class="flex items-start space-x-3">
+                                <div class="w-10 h-10 bg-slate-300 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-user text-slate-600"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex items-center space-x-2 mb-2">
+                                        <span class="font-bold text-slate-900">Your Account</span>
+                                        <span class="text-slate-500">@username</span>
+                                        <span class="text-slate-500">·</span>
+                                        <span class="text-slate-500">now</span>
+                                    </div>
+                                    <div id="tweetPreview" class="text-slate-900 whitespace-pre-wrap">What's happening?</div>
+                                    <div class="flex items-center space-x-6 mt-4 text-slate-500">
+                                        <span><i class="far fa-comment mr-2"></i>0</span>
+                                        <span><i class="fas fa-retweet mr-2"></i>0</span>
+                                        <span><i class="far fa-heart mr-2"></i>0</span>
+                                        <span><i class="fas fa-share mr-2"></i>0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section id="resultsSection" class="hidden" itemscope itemtype="https://schema.org/AnalysisNewsArticle">
+                <div class="saas-card rounded-xl p-8 mb-8">
+                    <h2 class="text-2xl font-bold mb-6 saas-text-primary" itemprop="headline">Performance Analysis</h2>
+                    
+                    <div class="grid md:grid-cols-3 gap-6 mb-8">
+                        <!-- Overall Score -->
+                        <div class="text-center" itemscope itemtype="https://schema.org/Rating">
+                            <div class="score-circle w-24 h-24 mx-auto mb-4">
+                                <div class="score-inner">
+                                    <span id="overallScore" class="text-2xl font-bold saas-text-primary" itemprop="ratingValue">-</span>
+                                </div>
+                            </div>
+                            <h3 class="font-semibold text-slate-800" itemprop="name">Overall Score</h3>
+                            <p class="text-sm text-slate-600">Predicted Performance</p>
+                            <meta itemprop="bestRating" content="100">
+                            <meta itemprop="worstRating" content="0">
+                        </div>
+
+                        <!-- Engagement Potential -->
+                        <div class="text-center">
+                            <div class="w-24 h-24 mx-auto mb-4 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center">
+                                <i class="fas fa-heart text-2xl text-white"></i>
+                            </div>
+                            <h3 class="font-semibold text-slate-800">Engagement</h3>
+                            <p id="engagementLevel" class="text-sm text-slate-600">-</p>
+                        </div>
+
+                        <!-- Reach Potential -->
+                        <div class="text-center">
+                            <div class="w-24 h-24 mx-auto mb-4 bg-gradient-to-br from-cyan-500 to-sky-500 rounded-full flex items-center justify-center">
+                                <i class="fas fa-share-alt text-2xl text-white"></i>
+                            </div>
+                            <h3 class="font-semibold text-slate-800">Reach</h3>
+                            <p id="reachLevel" class="text-sm text-slate-600">-</p>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Analysis -->
+                    <div class="bg-slate-50 rounded-lg p-6 border border-slate-200">
+                        <h3 class="font-semibold saas-text-primary mb-4">🔍 Detailed Analysis</h3>
+                        <div id="detailedAnalysis" class="text-slate-700 whitespace-pre-wrap" itemprop="articleBody">
+                            Enter a tweet above to see detailed analysis...
+                        </div>
+                    </div>
+
+                    <!-- Optimal Posting Time -->
+                    <div id="optimalTimeSection" class="bg-green-50 rounded-lg p-6 border border-green-200 mt-6">
+                        <h3 class="font-semibold text-green-800 mb-2 flex items-center">
+                            <i class="fas fa-clock mr-2"></i>Optimal Posting Time
+                        </h3>
+                        <div id="optimalTime" class="text-green-700"></div>
+                    </div>
+                </div>
+
+                <!-- Improvement Suggestions -->
+                <div class="saas-card rounded-xl p-8">
+                    <h2 class="text-2xl font-bold mb-6 saas-text-primary">💡 Improvement Suggestions</h2>
+                    <div id="suggestions" class="space-y-4">
+                        <p class="text-slate-600">Suggestions will appear here after analysis...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Analytics History -->
+            <section id="historySection" class="saas-card rounded-xl p-8 mt-8 hidden">
+                <h2 class="text-2xl font-bold mb-6 saas-text-primary">📊 Your Analysis History</h2>
+                <div id="historyList" class="space-y-4">
+                    <!-- History items will be loaded here -->
+                </div>
+            </section>
+        </div>
+
+        <!-- Demo Section -->
+        <section class="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-8 mt-12 border border-blue-100">
+            <h2 class="text-2xl font-bold mb-6 text-slate-800 text-center">Try These Example Tweets</h2>
+            <div class="grid md:grid-cols-2 gap-4">
+                <button class="demo-tweet text-left p-4 bg-white rounded-lg hover:shadow-md transition-shadow border border-slate-200" onclick="loadDemo(0)">
+                    <div class="text-sm text-slate-600 mb-2">High Engagement Example:</div>
+                    <div class="text-slate-800">"Just launched my side project after 6 months of late nights! 🚀 It's a simple tool that solves a problem I had daily. Sometimes the best ideas come from your own frustrations. What problem are you solving? #BuildInPublic"</div>
+                </button>
+                <button class="demo-tweet text-left p-4 bg-white rounded-lg hover:shadow-md transition-shadow border border-slate-200" onclick="loadDemo(1)">
+                    <div class="text-sm text-slate-600 mb-2">Low Engagement Example:</div>
+                    <div class="text-slate-800">"Had breakfast this morning. It was okay I guess."</div>
+                </button>
+            </div>
+        </section>
+
+        <!-- Pricing Section -->
+        <section id="pricing" class="saas-card rounded-xl p-8 mt-12" itemscope itemtype="https://schema.org/PriceSpecification">
+            <h2 class="text-3xl font-bold mb-4 text-slate-800 text-center">Choose Your Plan</h2>
+            <p class="text-slate-600 text-center mb-8">Get AI-powered insights to boost your Twitter engagement</p>
+            
+            <div class="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                <!-- Free Plan -->
+                <div class="bg-white border border-slate-200 rounded-xl p-6 text-center relative" itemscope itemtype="https://schema.org/Offer">
+                    <h3 class="text-xl font-bold mb-2 text-slate-800" itemprop="name">Free Trial</h3>
+                    <div class="text-3xl font-bold mb-4 text-slate-800">
+                        <span itemprop="price">0</span>
+                        <meta itemprop="priceCurrency" content="USD">
+                    </div>
+                    <div class="text-slate-600 mb-6">Perfect for getting started</div>
+                    <ul class="text-left space-y-2 mb-6">
+                        <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i>3 analyses per day</li>
+                        <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i>Basic performance scoring</li>
+                        <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i>Improvement suggestions</li>
+                        <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i>Email support</li>
+                    </ul>
+                    <button class="w-full saas-button text-white py-3 rounded-lg font-semibold" onclick="showAuthModal()">
+                        Get Started Free
+                    </button>
+                    <meta itemprop="availability" content="https://schema.org/InStock">
+                </div>
+
+                <!-- One-Time Pack -->
+                <div class="bg-white border-2 border-blue-500 rounded-xl p-6 text-center relative pricing-glow" itemscope itemtype="https://schema.org/Offer">
+                    <div class="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                        <span class="bg-blue-500 text-white px-4 py-1 rounded-full text-sm font-semibold">Most Popular</span>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2 text-slate-800" itemprop="name">100 Analyses Pack</h3>
+                    <div class="text-3xl font-bold mb-4 text-slate-800">
+                        $<span itemprop="price">9.99</span>
+                        <meta itemprop="priceCurrency" content="USD">
+                    </div>
+                    <div class="text-slate-600 mb-6">One-time purchase, no subscription</div>
+                    <ul class="text-left space-y-2 mb-6">
+                        <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i>100 tweet analyses</li>
+                        <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i>Advanced scoring metrics</li>
+                        <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i>Detailed improvement tips</li>
+                        <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i>Analysis history</li>
+                        <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i>Priority support</li>
+                    </ul>
+                    <button class="w-full saas-button text-white py-3 rounded-lg font-semibold relative coming-soon-button">
+                        <div class="coming-soon-badge">Coming Soon</div>
+                        Buy Once, Use Forever
+                    </button>
+                    <meta itemprop="availability" content="https://schema.org/PreOrder">
+                </div>
+
+                <!-- Pro Plan -->
+                <div class="bg-white border border-slate-200 rounded-xl p-6 text-center relative" itemscope itemtype="https://schema.org/Offer">
+                    <h3 class="text-xl font-bold mb-2 text-slate-800" itemprop="name">Pro Unlimited</h3>
+                    <div class="text-3xl font-bold mb-4 text-slate-800">
+                        $<span itemprop="price">19</span><span class="text-lg font-normal text-slate-600">/month</span>
+                        <meta itemprop="priceCurrency" content="USD">
+                    </div>
+                    <div class="text-slate-600 mb-6">For serious content creators</div>
+                    <ul class="text-left space-y-2 mb-6">
+                        <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i>Unlimited analyses</li>
+                        <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i>Advanced AI insights</li>
+                        <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i>Optimal timing predictions</li>
+                        <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i>Competitor analysis</li>
+                        <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i>White-label reports</li>
+                        <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i>24/7 priority support</li>
+                    </ul>
+                    <button class="w-full saas-button-secondary text-white py-3 rounded-lg font-semibold relative coming-soon-button">
+                        <div class="coming-soon-badge">Coming Soon</div>
+                        Start Pro Trial
+                    </button>
+                    <meta itemprop="availability" content="https://schema.org/PreOrder">
+                </div>
+            </div>
+        </section>
+
+        <!-- FAQ Section -->
+        <section class="mt-12" itemscope itemtype="https://schema.org/FAQPage">
+            <h2 class="text-3xl font-bold mb-8 text-slate-800 text-center">Frequently Asked Questions</h2>
+            <div class="space-y-6 max-w-3xl mx-auto">
+                <div class="saas-card rounded-lg p-6" itemscope itemtype="https://schema.org/Question">
+                    <h3 class="font-bold text-slate-800 mb-2" itemprop="name">How does the Tweet Performance Predictor work?</h3>
+                    <div class="text-slate-600" itemscope itemtype="https://schema.org/Answer" itemprop="acceptedAnswer">
+                        <div itemprop="text">Our AI analyzes multiple factors in your tweet including length, hashtags, emojis, engagement words, and timing to predict its potential performance and engagement.</div>
+                    </div>
+                </div>
+                
+                <div class="saas-card rounded-lg p-6" itemscope itemtype="https://schema.org/Question">
+                    <h3 class="font-bold text-slate-800 mb-2" itemprop="name">How many free analyses do I get?</h3>
+                    <div class="text-slate-600" itemscope itemtype="https://schema.org/Answer" itemprop="acceptedAnswer">
+                        <div itemprop="text">Free users get 3 tweet analyses per day. This resets every 24 hours.</div>
+                    </div>
+                </div>
+                
+                <div class="saas-card rounded-lg p-6" itemscope itemtype="https://schema.org/Question">
+                    <h3 class="font-bold text-slate-800 mb-2" itemprop="name">What factors affect tweet performance?</h3>
+                    <div class="text-slate-600" itemscope itemtype="https://schema.org/Answer" itemprop="acceptedAnswer">
+                        <div itemprop="text">Tweet performance is influenced by content length, use of hashtags and emojis, questions or calls-to-action, timing, emotional appeal, and engagement with other users.</div>
+                    </div>
+                </div>
+                
+                <div class="saas-card rounded-lg p-6" itemscope itemtype="https://schema.org/Question">
+                    <h3 class="font-bold text-slate-800 mb-2" itemprop="name">Is my data secure?</h3>
+                    <div class="text-slate-600" itemscope itemtype="https://schema.org/Answer" itemprop="acceptedAnswer">
+                        <div itemprop="text">Yes, we take data security seriously. Your tweets are analyzed locally and only performance metrics are stored. We never share your content with third parties.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-white py-12 mt-16" itemscope itemtype="https://schema.org/WPFooter">
+        <div class="container mx-auto px-4">
+            <div class="grid md:grid-cols-4 gap-8">
+                <div>
+                    <h3 class="font-bold mb-4">Tweet Performance Predictor</h3>
+                    <p class="text-slate-400">AI-powered tweet analysis to boost your social media engagement.</p>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Product</h4>
+                    <ul class="space-y-2 text-slate-400">
+                        <li><a href="#" class="hover:text-white">Features</a></li>
+                        <li><a href="#pricing" class="hover:text-white">Pricing</a></li>
+                        <li><a href="#" class="hover:text-white">API</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Support</h4>
+                    <ul class="space-y-2 text-slate-400">
+                        <li><a href="#" class="hover:text-white">Help Center</a></li>
+                        <li><a href="#" class="hover:text-white">Contact Us</a></li>
+                        <li><a href="#" class="hover:text-white">Status</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Legal</h4>
+                    <ul class="space-y-2 text-slate-400">
+                        <li><a href="#" class="hover:text-white">Privacy Policy</a></li>
+                        <li><a href="#" class="hover:text-white">Terms of Service</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-slate-800 mt-8 pt-8 text-center text-slate-400">
+                <p>&copy; 2025 Tweet Performance Predictor. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    
+</body>
+</html>

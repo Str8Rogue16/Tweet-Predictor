@@ -1,8 +1,5 @@
 -- Tweet Performance Predictor Database Schema for Supabase
 
--- Enable Row Level Security
-ALTER DATABASE postgres SET "app.jwt_secret" TO 'SUPABASE_JWT_SECRET';
-
 -- Users table (extends Supabase auth.users)
 CREATE TABLE public.user_profiles (
     user_id UUID REFERENCES auth.users(id) PRIMARY KEY,

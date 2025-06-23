@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 
 <head>
@@ -10,13 +9,15 @@
     <meta name="keywords" content="tweet analysis, twitter engagement, social media marketing, AI tweet predictor, tweet performance">  
     <meta property="og:title" content="Tweet Performance Predictor">
     <meta property="og:description" content="Predict tweet engagement using AI before you hit publish.">
-    <meta property="og:image:alt" content="https://yourdomain.com/og-image.jpg">
+    <meta property="og:image" content="https://tweetpredictor.io/tweet_predictor_logo.png">
     <meta property="og:url" content="https://tweetpredictor.io">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="theme-color" content="#0f172a"> <!-- Tailwind slate-900 -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="supabase-config.js"></script>
     <script src="https://unpkg.com/compromise"></script>
-    <script src="main.js" defer></script>
+    <script type="module" src="main.js" defer></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel=stylesheet href="styles.css">
     <link rel="manifest" href="/manifest.json">
@@ -33,17 +34,7 @@
 </noscript>
 
 <body class="min-h-screen" itemscope itemtype="https://schema.org/WebPage" lang="en">
-    <!-- Auth Modal -->
-    <div id="authModal" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
-        <h2 id="authModalTitle">Welcome to Tweet Predictor</h2>
-   
-            <!-- Auth Tabs -->
-            <div class="auth-tabs">
-                <div class="auth-tab active" data-tab="login">Login</div>
-                <div class="auth-tab" data-tab="register">Register</div>
-            </div>
-
-            <!-- Login Form -->
+   <!-- Login Form -->
             <div id="loginForm" class="auth-form">
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-slate-700 mb-2">Email</label>
@@ -91,7 +82,7 @@
             </button>
         </div>
     </div>
-
+    
     <!-- Header -->
     <header class="header-pattern text-white py-12 relative" itemscope itemtype="https://schema.org/WPHeader">
         <div class="container mx-auto px-4 text-center relative z-10">
